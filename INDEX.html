@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tray, Art, and Box Layout Generator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #e0e0e0; /* Light gray background */
+    }
+    .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .controls, .cutlist {
+      width: 25%;
+    }
+    .controls {
+      margin-right: 20px;
+    }
+    .cutlist {
+      margin-left: 20px;
+    }
+    .canvas-container {
+      width: 50%;
+      text-align: center;
+    }
+    canvas {
+      background-color: #d3d3d3; /* Gray canvas background */
+      border: 1px solid black;
+    }
+    table {
+      margin-top: 20px;
+      border-collapse: collapse;
+      width: 100%;
+    }
+    table, th, td {
+      border: 1px solid black;
+    }
+    th, td {
+      padding: 10px;
+      text-align: center;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 15px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1 style="text-align: center;">Tray, Art, and Box Layout Generator</h1>
+
+  <div class="container">
+    <!-- Controls -->
+    <div class="controls">
+      <h3>Tray Dimensions</h3>
+      <label for="trayWidth">Tray Width (in):</label>
+      <input type="number" id="trayWidth" step="0.0625" value="60"><br>
+      <label for="trayHeight">Tray Height (in):</label>
+      <input type="number" id="trayHeight" step="0.0625" value="60"><br>
+      <label for="trayNumber">Tray #: </label>
+      <input type="text" id="trayNumber" placeholder="Enter Tray #"><br>
+
+      <h3>Art Dimensions</h3>
+      <label for="artWidth">Art Width (in):</label>
+      <input type="number" id="artWidth" step="0.0625" value="50"><br>
+      <label for="artHeight">Art Height (in):</label>
+      <input type="number" id="artHeight" step="0.0625" value="50"><br>
+      <label for="artThickness">Art Thickness (in):</label>
+      <input type="number" id="artThickness" step="0.0625" value="1"><br>
+      <label for="artTitle">Art Title: </label>
+      <input type="text" id="artTitle" placeholder="Enter Art Title"><br>
+
+      <h3>Middle Boxes (A) Vertical Position</h3>
+      <label for="middleBoxVertical">Vertical Position (in):</label>
+      <input type="range" id="middleBoxVertical" min="0" max="50" value="0" step="0.0625" oninput="updateDisplay()">
+      <span id="middleBoxVerticalLabel">0.0</span><br>
+
+      <h3>Side Boxes (B) Horizontal Position</h3>
+      <label for="sideBoxHorizontal">Horizontal Position (in):</label>
+      <input type="range" id="sideBoxHorizontal" min="0" max="50" value="0" step="0.0625" oninput="updateDisplay()">
+      <span id="sideBoxHorizontalLabel">0.0</span><br>
+
+      <button onclick="updateDisplay()">Generate Layout</button>
+      <button onclick="generateCutList()">Generate Cut List</button>
+      <button onclick="exportCanvas()">Export as Image</button>
+    </div>
+
+    <!-- Canvas Container -->
+    <div class="canvas-container">
+      <canvas id="layoutCanvas" width="600" height="600"></canvas>
+    </div>
+
+    <!-- Cut List -->
+    <div class="cutlist">
+      <h3>Cut List</h3>
+      <table id="cutListTable">
+        <thead>
+          <tr>
+            <th>Pad Type</th>
+            <th>Width (in)</th>
+            <th>Height (in)</th>
+            <th>Thickness (in)</th>
+            <th>Quantity</th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const canvasSize = 600; // Canvas dimensions in pixels
+    const maxInches = 100; // Maximum real-world dimensions in inches
+    const scaleFactor = canvasSize / maxInches; // Pixels per inch for scaling
+
+    let cutList = []; // Stores the cut list
+
+    // Function to update display and redraw layout
+    function updateDisplay() {
+      const trayWidthIn = parseFloat(document.getElementById('trayWidth').value);
+      const trayHeightIn = parseFloat(document.getElementById('trayHeight').value);
+      const artWidthIn = parseFloat(document.getElementById('artWidth').value);
+      const artHeightIn = parseFloat(document.getElementById('artHeight').value);
+      const middleBoxVerticalIn = parseFloat(document.getElementById('middleBoxVertical').value);
+      const sideBoxHorizontalIn = parseFloat(document.getElementById('sideBoxHorizontal').value);
+      const trayNumber = document.getElementById('trayNumber').value;
+      const artTitle = document.getElementById('artTitle').value;
+
+      document.getElementById('middleBoxVerticalLabel').innerText = middleBoxVerticalIn.toFixed(2);
+      document.getElementById('sideBoxHorizontalLabel').innerText = sideBoxHorizontalIn.toFixed(2);
+
+      if (
+        trayWidthIn > maxInches ||
+        trayHeightIn > maxInches ||
+        artWidthIn > trayWidthIn ||
+        artHeightIn > trayHeightIn
+      ) {
+        alert("Invalid dimensions. Ensure that Art fits within the Tray, and Tray fits within the canvas (100x100 inches). Pads must also stay within Art dimensions.");
+        return;
+      }
+
+      drawLayout(trayWidthIn, trayHeightIn, artWidthIn, artHeightIn, middleBoxVerticalIn, sideBoxHorizontalIn, trayNumber, artTitle);
+    }
+
+    function drawLayout(trayWidthIn, trayHeightIn, artWidthIn, artHeightIn, middleBoxVerticalIn, sideBoxHorizontalIn, trayNumber, artTitle) {
+      const canvas = document.getElementById('layoutCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const trayWidthPx = trayWidthIn * scaleFactor;
+      const trayHeightPx = trayHeightIn * scaleFactor;
+      const artWidthPx = artWidthIn * scaleFactor;
+      const artHeightPx = artHeightIn * scaleFactor;
+      const middleBoxVerticalPx = middleBoxVerticalIn * scaleFactor;
+      const sideBoxHorizontalPx = sideBoxHorizontalIn * scaleFactor;
+
+      const trayStartX = (canvas.width - trayWidthPx) / 2;
+      const trayStartY = canvas.height - trayHeightPx;
+
+      // Draw Tray
+      ctx.fillStyle = 'white';
+      ctx.fillRect(trayStartX, trayStartY, trayWidthPx, trayHeightPx);
+
+      // Add Tray Number
+      ctx.fillStyle = 'black';
+      ctx.font = '12px Arial';
+      ctx.fillText(trayNumber, trayStartX + 5, trayStartY + 15);
+
+      // Draw Art
+      const artStartX = trayStartX + (trayWidthPx - artWidthPx) / 2;
+      const artStartY = trayStartY + trayHeightPx - artHeightPx;
+      ctx.fillStyle = 'lime';
+      ctx.fillRect(artStartX, artStartY, artWidthPx, artHeightPx);
+
+      // Add Art Title
+      ctx.fillStyle = 'black';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(artTitle, artStartX + artWidthPx / 2, artStartY + artHeightPx / 2);
+
+      // Additional Drawing Logic (Boxes, etc.)
+      const leftSpacePx = artStartX - trayStartX;
+      const rightSpacePx = trayStartX + trayWidthPx - (artStartX + artWidthPx);
+      const topSpacePx = artStartY - trayStartY;
+
+      const boxHeightPx = 3 * scaleFactor;
+
+      // Left Bottom Box
+      ctx.strokeStyle = 'black';
+      ctx.strokeRect(trayStartX, trayStartY + trayHeightPx - boxHeightPx, leftSpacePx, boxHeightPx);
+
+      // Right Bottom Box
+      ctx.strokeRect(trayStartX + trayWidthPx - rightSpacePx, trayStartY + trayHeightPx - boxHeightPx, rightSpacePx, boxHeightPx);
+
+      // Middle Boxes
+      const middleBoxHeightPx = 3 * scaleFactor;
+      const adjustedMiddleBoxVerticalPx = Math.min(middleBoxVerticalPx, trayHeightPx - middleBoxHeightPx);
+
+      ctx.strokeRect(trayStartX, trayStartY + trayHeightPx - adjustedMiddleBoxVerticalPx - middleBoxHeightPx, leftSpacePx, middleBoxHeightPx);
+      ctx.strokeRect(trayStartX + trayWidthPx - rightSpacePx, trayStartY + trayHeightPx - adjustedMiddleBoxVerticalPx - middleBoxHeightPx, rightSpacePx, middleBoxHeightPx);
+
+      // Side Boxes
+      const sideBoxWidthPx = 3 * scaleFactor;
+      const sideBoxHeightPx = topSpacePx;
+      const adjustedSideBoxHorizontalPx = Math.min(sideBoxHorizontalPx, trayWidthPx - sideBoxWidthPx);
+
+      ctx.strokeRect(trayStartX + adjustedSideBoxHorizontalPx, trayStartY, sideBoxWidthPx, sideBoxHeightPx);
+      ctx.strokeRect(trayStartX + trayWidthPx - adjustedSideBoxHorizontalPx - sideBoxWidthPx, trayStartY, sideBoxWidthPx, sideBoxHeightPx);
+    }
+
+    function generateCutList() {
+      const trayWidthIn = parseFloat(document.getElementById('trayWidth').value);
+      const trayHeightIn = parseFloat(document.getElementById('trayHeight').value);
+      const artWidthIn = parseFloat(document.getElementById('artWidth').value);
+      const artHeightIn = parseFloat(document.getElementById('artHeight').value);
+      const artThicknessIn = parseFloat(document.getElementById('artThickness').value);
+
+      const aPadWidth = trayWidthIn - artWidthIn;
+      const bPadHeight = trayHeightIn - artHeightIn;
+
+      cutList = [
+        { type: "A Pad", width: (aPadWidth / 2).toFixed(2), height: "3.00", thickness: artThicknessIn.toFixed(2), quantity: 4 },
+        { type: "B Pad", width: "3.00", height: bPadHeight.toFixed(2), thickness: artThicknessIn.toFixed(2), quantity: 2 }
+      ];
+
+      const tableBody = document.getElementById('cutListTable').querySelector('tbody');
+      tableBody.innerHTML = "";
+
+      cutList.forEach((entry) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${entry.type}</td>
+          <td>${entry.width}</td>
+          <td>${entry.height}</td>
+          <td>${entry.thickness}</td>
+          <td>${entry.quantity}</td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
+
+    function exportCanvas() {
+      const canvas = document.getElementById('layoutCanvas');
+      const link = document.createElement('a');
+      link.download = 'layout.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    }
+
+    // Initial draw
+    updateDisplay();
+  </script>
+</body>
+</html>
