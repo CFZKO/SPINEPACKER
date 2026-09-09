@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spine Packer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root{
+    --bg: #efece4;
+    --panel: #ffffff;
+    --ink: #22221f;
+    --ink-soft: #6b6a63;
+    --line: #d8d4c9;
+    --foam-a: #e8b04b;
+    --foam-b: #c96f4a;
+    --foam-c: #8a95a8;
+    --art: #6fae8f;
+    --accent: #3a5a52;
+    --danger: #b3452f;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    font-family: 'Courier New', ui-monospace, Menlo, monospace;
+    background: var(--bg);
+    color: var(--ink);
+    padding: 28px;
+  }
+  h1{
+    font-family: Georgia, 'Times New Roman', serif;
+    font-weight: 400;
+    font-size: 30px;
+    margin: 0 0 4px 0;
+    letter-spacing: 0.5px;
+  }
+  .sub{
+    color: var(--ink-soft);
+    font-size: 13px;
+    margin-bottom: 24px;
+    max-width: 640px;
+    line-height: 1.5;
+  }
+  .layout{
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  .panel{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 18px;
+  }
+  .panel h2{
+    font-family: Georgia, serif;
+    font-weight: 400;
+    font-size: 15px;
+    margin: 0 0 12px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  label{
+    display:block;
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-top: 10px;
+    margin-bottom: 3px;
+  }
+  input[type=number], input[type=file]{
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    background: #fbfaf6;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--ink);
+  }
+  input[type=file]{ padding: 6px 0; border: none; background: none; }
+  .row2{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  button{
+    width: 100%;
+    margin-top: 16px;
+    padding: 10px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button:hover{ opacity: 0.9; }
+  button.secondary{
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+  }
+  .csv-hint{
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+  .csv-hint code{
+    background: #f1efe6;
+    padding: 1px 4px;
+  }
+  .status{
+    font-size: 12px;
+    margin-top: 10px;
+    padding: 8px 10px;
+    display: none;
+  }
+  .status.error{ display:block; background:#f6e3dd; color: var(--danger); border-left: 3px solid var(--danger); }
+  .status.ok{ display:block; background:#e7efe9; color: var(--accent); border-left: 3px solid var(--accent); }
+
+  .tray-block{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    margin-bottom: 20px;
+  }
+  .tray-head{
+    display:flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .tray-head h3{
+    font-family: Georgia, serif;
+    font-weight: 400;
+    font-size: 17px;
+    margin:0;
+  }
+  .tray-head span{
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+  .tray-body{
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 0;
+  }
+  canvas{
+    display:block;
+    background: #f6f4ee;
+  }
+  .swatch{
+    display:inline-block;
+    width: 9px; height: 9px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .depth-group{
+    margin-top: 16px;
+  }
+  .depth-group:first-of-type{
+    margin-top: 4px;
+  }
+  .depth-head{
+    font-size: 13px;
+    font-weight: bold;
+    color: var(--accent);
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+    border-bottom: 2px solid var(--accent);
+  }
+  .depth-head span{
+    font-weight: normal;
+    color: var(--ink-soft);
+    font-size: 11px;
+  }
+  .cut-list{
+    padding: 14px 18px;
+  }
+  .cut-line{
+    display: grid;
+    grid-template-columns: 34px 1fr auto;
+    gap: 10px;
+    align-items: baseline;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 13px;
+  }
+  .cut-line:last-child{
+    border-bottom: none;
+  }
+  .cut-qty{
+    font-weight: bold;
+    color: var(--ink);
+  }
+  .cut-size{
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+  }
+  .cut-label{
+    font-size: 11px;
+    color: var(--ink-soft);
+    text-align: right;
+  }
+  .empty{
+    color: var(--ink-soft);
+    font-size: 13px;
+    padding: 40px 20px;
+    text-align: center;
+    border: 1px dashed var(--line);
+    background: var(--panel);
+  }
+  .assumptions{
+    font-size: 11px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+  @media (max-width: 800px){
+    .layout{ grid-template-columns: 1fr; }
+    .tray-body{ grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Spine Packer</h1>
+<div class="sub">Upload a CSV of artwork, set the tray size, and get a pad cut list per tray.</div>
+
+<div class="layout">
+
+  <div class="panel">
+    <h2>Tray size</h2>
+    <div class="row2">
+      <div>
+        <label for="trayWidth">Width (in)</label>
+        <input type="number" id="trayWidth" step="0.0625" value="60">
+      </div>
+      <div>
+        <label for="trayHeight">Height (in)</label>
+        <input type="number" id="trayHeight" step="0.0625" value="60">
+      </div>
+    </div>
+    <label for="padWidth">Ethafoam pad width (in)</label>
+    <input type="number" id="padWidth" step="0.0625" value="3">
+    <label for="minGap">Min. gap between artworks in a tray (in)</label>
+    <input type="number" id="minGap" step="0.0625" value="3" oninput="updateSpineReadout()">
+
+    <h2 style="margin-top:20px;">Artwork CSV</h2>
+    <input type="file" id="csvFile" accept=".csv">
+    <div class="csv-hint">
+      No header row. 5 columns in order: <code>Tray, Height, Length, Thickness, Ref #</code><br>
+      <b>Tray</b> is the tray number you assign each piece to (1, 2, 3…). Multiple rows can share a tray number — the tray holds all of them side by side.<br>
+      <b>Ref #</b> is your artwork reference number — it's shown on the artwork rectangle in each tray's diagram.
+    </div>
+    <div id="status" class="status"></div>
+    <div id="spineReadout" style="font-size:13px;color:var(--ink-soft);margin-top:10px;"></div>
+    <button onclick="loadSample()" class="secondary">Load sample CSV</button>
+    <button onclick="render()">Generate spine</button>
+
+    <div class="assumptions">
+      <b>Pad model (from your diagram):</b><br>
+      Artwork registers to the bottom of the tray (gravity), centered/grouped side to side. Pads are always the width set above — only their reach varies.<br>
+      <b>The spine</b> — the pads' position (not length) is fixed for every tray, set once by the smallest height and smallest length found anywhere in the CSV.<br>
+      <b>Vertical pads</b> — for a tray holding a single artwork, both edges sit at the spine's fixed side position. For a tray holding more than one artwork, the true outer edges (touching the tray wall side) are tertiary instead — it's the inner edges, facing across the gap between artworks, that use the spine's fixed reference. These stay labeled "Vertical Pad."<br>
+      <b>Tertiary pads</b> — touch that artwork's own actual edge directly and aren't spine-anchored. Shown in a different color and listed separately.<br>
+      <b>Pad depth</b> — every pad in a tray uses that tray's greatest artwork thickness plus 1/8", even for pads touching a thinner piece. The thinner piece gets shimmed at the back to sit flush.<br>
+      <b>Horizontal pads</b> (qty 4 per tray — top pair at the spine's fixed height, bottom pair at the tray floor) — reach sideways from the wall to the group's outer artwork edge.<br>
+      I've labeled these by orientation rather than the guide's "A/B" since that mapping wasn't fully clear from the text — flag it if you'd rather see A/B labels instead.
+    </div>
+  </div>
+
+  <div id="output">
+    <div class="empty">Load a CSV and click "Generate spine" to see trays and a cut list.</div>
+  </div>
+
+</div>
+
+<script>
+let rows = [];
+
+const sampleCsv = `1,27,27,4,A-101
+2,15,13,3,A-102
+3,32,40,3,A-103
+4,15,13,2,A-104
+4,14,12,2,A-105`;
+
+function loadSample(){
+  parseCsvText(sampleCsv);
+  showStatus('ok', 'Sample data loaded — 5 pieces across 4 trays.');
+}
+
+document.getElementById('csvFile').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    parseCsvText(evt.target.result);
+  };
+  reader.readAsText(file);
+});
+
+function parseCsvText(text){
+  const result = Papa.parse(text.trim(), { header: false, skipEmptyLines: true });
+  if(result.errors.length){
+    showStatus('error', 'Could not parse CSV: ' + result.errors[0].message);
+    return;
+  }
+
+  const counters = {};
+  rows = result.data
+    .filter(r => r.length >= 4)
+    .map(r => {
+      const tray = (r[0] || '').toString().trim();
+      const height = parseFloat(r[1]);
+      const width = parseFloat(r[2]);
+      const thickness = parseFloat(r[3]);
+      const ref = (r[4] || '').toString().trim();
+      counters[tray] = (counters[tray] || 0) + 1;
+      const fallback = `Tray ${tray}${counters[tray] > 1 ? '.' + counters[tray] : ''}`;
+      return {
+        title: ref || fallback,
+        ref, tray, height, width, thickness
+      };
+    })
+    .filter(r => r.tray && !isNaN(r.height) && !isNaN(r.width));
+
+  const bad = rows.some(r => isNaN(r.thickness));
+  if(!rows.length){
+    showStatus('error', 'No valid rows found. Expect columns: Tray, Height, Length, Thickness, Ref # — no header.');
+  } else if(bad){
+    showStatus('error', 'Some rows are missing a Thickness value — those rows were kept but may be inaccurate.');
+  } else {
+    showStatus('ok', `Loaded ${rows.length} piece(s) across ${new Set(rows.map(r=>r.tray)).size} tray(s).`);
+  }
+  updateSpineReadout();
+}
+
+function updateSpineReadout(){
+  const el = document.getElementById('spineReadout');
+  if(!rows.length){
+    el.innerHTML = '';
+    return;
+  }
+  const minGap = parseFloat(document.getElementById('minGap').value);
+  const globals = computeGlobals(groupByTray(rows), isNaN(minGap) ? 0 : minGap);
+  el.innerHTML = `<b>Spine:</b> ${fmt(globals.smallestHeight)}" H &times; ${fmt(globals.smallestLength)}" L`;
+}
+
+function showStatus(kind, msg){
+  const el = document.getElementById('status');
+  el.className = 'status ' + kind;
+  el.textContent = msg;
+}
+
+function groupByTray(rows){
+  const groups = {};
+  rows.forEach(r => {
+    if(!groups[r.tray]) groups[r.tray] = [];
+    groups[r.tray].push(r);
+  });
+  return Object.keys(groups)
+    .sort((a,b) => {
+      const na = parseFloat(a), nb = parseFloat(b);
+      if(!isNaN(na) && !isNaN(nb)) return na - nb;
+      return a.localeCompare(b);
+    })
+    .map(key => ({ tray: key, pieces: groups[key] }));
+}
+
+function computeGlobals(groups, minGap){
+  const allHeights = groups.flatMap(g => g.pieces.map(p => p.height));
+  const trayWidths = groups.map(g =>
+    g.pieces.reduce((sum, p) => sum + p.width, 0) + (g.pieces.length - 1) * minGap
+  );
+  return {
+    smallestHeight: Math.min(...allHeights),
+    smallestLength: Math.min(...trayWidths)
+  };
+}
+
+function computeTray(trayWidth, trayHeight, padWidth, minGap, pieces, globals){
+  // Lay artworks out left to right in CSV row order, each bottom-flush,
+  // separated by at least minGap, the whole group centered in the tray.
+  const groupWidth = pieces.reduce((sum, p) => sum + p.width, 0) + (pieces.length - 1) * minGap;
+  const groupLeft = (trayWidth - groupWidth) / 2;
+
+  let cursor = groupLeft;
+  const n = pieces.length;
+  const maxThickness = Math.max(...pieces.map(p => p.thickness)) + 0.125;
+  const slots = pieces.map((p, i) => {
+    const left = cursor;
+    const right = cursor + p.width;
+    cursor = right + minGap;
+    const length = trayHeight - p.height;
+
+    let leftKind, leftSpineRole, rightKind, rightSpineRole;
+    if(n === 1){
+      leftKind = 'spine'; leftSpineRole = 'left';
+      rightKind = 'spine'; rightSpineRole = 'right';
+    } else {
+      if(i === 0){
+        leftKind = 'tertiary';
+      } else {
+        const gapIndex = i - 1;
+        leftKind = (gapIndex === 0 || gapIndex === n - 2) ? 'spine' : 'tertiary';
+        leftSpineRole = 'right';
+      }
+      if(i === n - 1){
+        rightKind = 'tertiary';
+      } else {
+        const gapIndex = i;
+        rightKind = (gapIndex === 0 || gapIndex === n - 2) ? 'spine' : 'tertiary';
+        rightSpineRole = 'left';
+      }
+    }
+
+    return {
+      ref: p.ref, title: p.title,
+      width: p.width, height: p.height, thickness: p.thickness,
+      left, right,
+      // Depth uses the tray's greatest thickness, not this piece's own —
+      // thinner pieces get shimmed at the back to sit flush with the pad.
+      leftPad: { kind: leftKind, spineRole: leftSpineRole, length, width: padWidth, depth: maxThickness, qty: 1 },
+      rightPad: { kind: rightKind, spineRole: rightSpineRole, length, width: padWidth, depth: maxThickness, qty: 1 }
+    };
+  });
+
+  const outerLeft = slots[0].left;
+  const outerRight = slots[slots.length - 1].right;
+
+  // Horizontal pads stay shared for the whole tray — wall to the group's outer edges.
+  const horizontalLength = outerLeft; // equals trayWidth - outerRight, since the group is centered
+  const spineSideOffset = (trayWidth - globals.smallestLength) / 2;
+  const spineTopOffset = trayHeight - globals.smallestHeight;
+
+  // Separator pads: one per gap between artworks, filling the floor-level gap
+  // itself (the vertical/tertiary pads above already cover the top portion).
+  const separators = [];
+  for(let i = 0; i < n - 1; i++){
+    separators.push({
+      leftX: slots[i].right, rightX: slots[i + 1].left,
+      length: minGap, width: padWidth, depth: maxThickness, qty: 2
+    });
+  }
+
+  const slotsValid = slots.every(s => s.leftPad.length >= 0 && s.rightPad.length >= 0);
+
+  return {
+    slots, outerLeft, outerRight, separators,
+    spineSideOffset, spineTopOffset,
+    horizontal: { length: horizontalLength, width: padWidth, depth: maxThickness, qty: 4 },
+    valid: slotsValid && horizontalLength >= 0 && spineSideOffset >= 0 && spineTopOffset >= 0 && groupWidth <= trayWidth
+  };
+}
+
+function fmt(n){ return (Math.round(n * 10000) / 10000).toString(); }
+
+function drawTray(canvas, trayWidth, trayHeight, padWidth, spineSideOffset, spineTopOffset, slots, separators){
+  const ctx = canvas.getContext('2d');
+  const pad = 20;
+  const availW = canvas.width - pad*2;
+  const availH = canvas.height - pad*2;
+  const scale = Math.min(availW / trayWidth, availH / trayHeight);
+
+  ctx.clearRect(0,0,canvas.width, canvas.height);
+
+  const tW = trayWidth * scale, tH = trayHeight * scale;
+  const tX = (canvas.width - tW)/2, tY = (canvas.height - tH)/2;
+
+  ctx.fillStyle = '#f6f4ee';
+  ctx.fillRect(tX, tY, tW, tH);
+  ctx.strokeStyle = '#c9c4b6';
+  ctx.strokeRect(tX, tY, tW, tH);
+
+  const pW = Math.max(2, padWidth * scale);
+  const outerLeft = tX + slots[0].left * scale;
+  const outerRight = tX + slots[slots.length - 1].right * scale;
+  const spineY = tY + spineTopOffset * scale;
+
+  // Horizontal pads: shared for the whole tray — wall to the group's outer edges.
+  ctx.fillStyle = '#c96f4a';
+  ctx.fillRect(tX, spineY, outerLeft - tX, pW);
+  ctx.fillRect(outerRight, spineY, (tX + tW) - outerRight, pW);
+  ctx.fillRect(tX, tY + tH - pW, outerLeft - tX, pW);
+  ctx.fillRect(outerRight, tY + tH - pW, (tX + tW) - outerRight, pW);
+
+  // Separator pads: one pair per gap between artworks — bottom at floor level,
+  // top matching the top horizontal pad's line.
+  (separators || []).forEach(sep => {
+    const x1 = tX + sep.leftX * scale;
+    const x2 = tX + sep.rightX * scale;
+    ctx.fillStyle = '#c96f4a';
+    ctx.fillRect(x1, tY + tH - pW, x2 - x1, pW);
+    ctx.fillRect(x1, spineY, x2 - x1, pW);
+  });
+
+  slots.forEach(s => {
+    const sLeft = tX + s.left * scale;
+    const sRight = tX + s.right * scale;
+    const sW = sRight - sLeft;
+    const sH = s.height * scale;
+    const sY = tY + tH - sH; // bottom-flush
+
+    // Vertical pads: tertiary edges touch this artwork's own actual edge and
+    // extend outward. Spine edges sit at the fixed reference line instead —
+    // for a single-artwork tray that's both outer edges; for a multi-artwork
+    // tray it's the inner edges of the outermost gap(s) between pieces.
+    const drawPad = (pad, side) => {
+      if(pad.kind === 'spine'){
+        ctx.fillStyle = '#e8b04b';
+        if(pad.spineRole === 'left'){
+          const x = tX + spineSideOffset * scale;
+          ctx.fillRect(x, tY, pW, sY - tY);
+        } else {
+          const x = tX + tW - spineSideOffset * scale;
+          ctx.fillRect(x - pW, tY, pW, sY - tY);
+        }
+      } else {
+        ctx.fillStyle = '#8a95a8';
+        if(side === 'left'){
+          ctx.fillRect(sLeft, tY, pW, sY - tY);
+        } else {
+          ctx.fillRect(sRight - pW, tY, pW, sY - tY);
+        }
+      }
+    };
+    drawPad(s.leftPad, 'left');
+    drawPad(s.rightPad, 'right');
+
+    // Art
+    ctx.fillStyle = '#6fae8f';
+    ctx.fillRect(sLeft, sY, sW, sH);
+    ctx.strokeStyle = '#22221f';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(sLeft, sY, sW, sH);
+
+    if(s.ref){
+      ctx.fillStyle = '#22221f';
+      ctx.font = '600 11px Georgia, serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(s.ref, sLeft + sW/2, sY + sH/2, sW - 6);
+    }
+  });
+
+  // Floor line, since the art sits flush against it
+  ctx.strokeStyle = '#22221f';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(tX, tY+tH);
+  ctx.lineTo(tX+tW, tY+tH);
+  ctx.stroke();
+}
+
+function render(){
+  const trayWidth = parseFloat(document.getElementById('trayWidth').value);
+  const trayHeight = parseFloat(document.getElementById('trayHeight').value);
+  const padWidth = parseFloat(document.getElementById('padWidth').value);
+  const minGap = parseFloat(document.getElementById('minGap').value);
+  const output = document.getElementById('output');
+
+  if(!rows.length){
+    showStatus('error', 'No artwork loaded yet — upload a CSV or load the sample.');
+    return;
+  }
+  if(isNaN(trayWidth) || isNaN(trayHeight) || trayWidth <= 0 || trayHeight <= 0){
+    showStatus('error', 'Enter a valid tray width and height.');
+    return;
+  }
+  if(isNaN(padWidth) || padWidth <= 0){
+    showStatus('error', 'Enter a valid pad width.');
+    return;
+  }
+  if(isNaN(minGap) || minGap < 0){
+    showStatus('error', 'Enter a valid minimum gap.');
+    return;
+  }
+
+  const groups = groupByTray(rows);
+  const globals = computeGlobals(groups, minGap);
+  let html = '';
+  let hasOversize = false;
+
+  const spineNote = `Spine derived from the smallest piece in the CSV: ${fmt(globals.smallestHeight)}" H × ${fmt(globals.smallestLength)}" L. Pad position stays fixed at this reference across every tray; only pad length shrinks for larger art. Artworks sharing a tray sit side by side with at least ${fmt(minGap)}" between them.`;
+
+  groups.forEach((g, idx) => {
+    const calc = computeTray(trayWidth, trayHeight, padWidth, minGap, g.pieces, globals);
+    if(!calc.valid) hasOversize = true;
+
+    const titles = g.pieces.map(p => p.title).join(', ');
+
+    // Aggregate identical pad sizes across the tray's artworks, split by kind
+    // (spine = the group's true outer edges; tertiary = artwork-to-artwork separators).
+    const vertTotals = {};
+    calc.slots.forEach(s => {
+      [s.leftPad, s.rightPad].forEach(p => {
+        const k = p.kind + '|' + `${fmt(p.length)}|${fmt(p.width)}|${fmt(p.depth)}`;
+        if(!vertTotals[k]) vertTotals[k] = { ...p, qty: 0 };
+        vertTotals[k].qty += p.qty;
+      });
+    });
+
+    const kindLabel = { spine: 'Vertical Pad', tertiary: 'Tertiary Pad' };
+    const kindSwatch = { spine: '#e8b04b', tertiary: '#8a95a8' };
+
+    const separatorTotals = {};
+    calc.separators.forEach(sep => {
+      const k = `${fmt(sep.length)}|${fmt(sep.width)}|${fmt(sep.depth)}`;
+      if(!separatorTotals[k]) separatorTotals[k] = { ...sep, qty: 0 };
+      separatorTotals[k].qty += sep.qty;
+    });
+
+    const cutLines = [
+      ...Object.values(vertTotals).map(v => ({ label: kindLabel[v.kind], swatch: kindSwatch[v.kind], pad: v })),
+      { label: 'Horizontal Pad', swatch: '#c96f4a', pad: calc.horizontal },
+      ...Object.values(separatorTotals).map(s => ({ label: 'Separator Pad', swatch: '#c96f4a', pad: s }))
+    ].sort((a,b) => b.pad.length - a.pad.length);
+
+    const trayPieceCount = cutLines.reduce((sum, c) => sum + c.pad.qty, 0);
+
+    // Group by depth in case artworks in the same tray differ in thickness.
+    const byDepth = {};
+    cutLines.forEach(c => {
+      const dk = fmt(c.pad.depth);
+      if(!byDepth[dk]) byDepth[dk] = [];
+      byDepth[dk].push(c);
+    });
+
+    const depthGroupsHtml = Object.keys(byDepth).sort((a,b) => a - b).map(dk => `
+      <div class="depth-group">
+        <div class="depth-head">${dk}" thick</div>
+        ${byDepth[dk].map(c => `
+          <div class="cut-line">
+            <span class="cut-qty">${c.pad.qty}×</span>
+            <span class="cut-size"><span class="swatch" style="background:${c.swatch}"></span>${fmt(c.pad.length)}" &times; ${fmt(c.pad.width)}" &times; ${fmt(c.pad.depth)}"</span>
+            <span class="cut-label">${c.label}</span>
+          </div>`).join('')}
+      </div>`).join('');
+
+    html += `
+    <div class="tray-block">
+      <div class="tray-head">
+        <h3>Tray ${g.tray}</h3>
+        <span>${titles} &nbsp;·&nbsp; ${trayPieceCount} pieces</span>
+      </div>
+      <div class="tray-body">
+        <canvas id="canvas-${idx}" width="260" height="260"></canvas>
+        <div class="cut-list">
+          ${depthGroupsHtml}
+        </div>
+      </div>
+      ${!calc.valid ? '<div class="status error" style="display:block;margin:0 18px 14px;">This tray\'s artwork doesn\'t fit at this tray size — check widths/heights against the tray dimensions.</div>' : ''}
+    </div>`;
+  });
+
+  output.innerHTML = `<div style="font-size:11px;color:var(--ink-soft);margin-bottom:16px;">${spineNote}</div>` + html;
+
+  groups.forEach((g, idx) => {
+    const calc = computeTray(trayWidth, trayHeight, padWidth, minGap, g.pieces, globals);
+    const canvas = document.getElementById('canvas-' + idx);
+    drawTray(canvas, trayWidth, trayHeight, padWidth, calc.spineSideOffset, calc.spineTopOffset, calc.slots, calc.separators);
+  });
+
+  if(hasOversize){
+    showStatus('error', 'One or more trays have artwork too large or too many pieces for the given tray size — check the highlighted tray(s).');
+  } else {
+    showStatus('ok', `Generated ${groups.length} tray(s).`);
+  }
+}
+</script>
+</body>
+</html>
